@@ -1,0 +1,41 @@
+{
+  "name": "@qmpc/core",
+  "version": "0.1.0",
+  "description": "Type-safe declarative graph engine for building surveys and questionnaires",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["survey", "questionnaire", "graph", "typed", "form", "wizard"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./questions": {
+      "types": "./dist/question.d.ts",
+      "import": "./dist/question.js",
+      "require": "./dist/question.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:esm": "bun build src/index.ts --outfile dist/index.js --format esm --target node && bun build src/question.ts --outfile dist/question.js --format esm --target node",
+    "build:cjs": "bun build src/index.ts --outfile dist/index.cjs --format cjs --target node && bun build src/question.ts --outfile dist/question.cjs --format cjs --target node",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && bun run build:esm && bun run build:cjs && bun run build:types",
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
