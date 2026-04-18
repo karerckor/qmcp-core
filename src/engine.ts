@@ -4,6 +4,7 @@ import type {
   EdgeContext,
   EngineStatus,
   EngineEventMap,
+  EngineSnapshot,
 } from './types.js';
 import { GraphError } from './types.js';
 
@@ -106,6 +107,54 @@ export class GraphEngine<Init, Answers, NodeDef extends AnyNodeDef = AnyNodeDef>
 
   visitedNodes(): readonly NodeDef['id'][] {
     return [...this._history] as NodeDef['id'][];
+  }
+
+  /** Capture the engine's runtime state as a JSON-safe object. Combined
+   *  with `GraphDefinition.restore()`, this enables suspending and
+   *  resuming a traversal across processes / page reloads / DB round-trips. */
+  snapshot(): EngineSnapshot {
+    return {
+      version: 1,
+      currentNodeId: this._currentNode.id,
+      answers: { ...this._answers },
+      history: [...this._history],
+      status: this._status,
+    };
+  }
+
+  /** @internal — used by GraphDefinition.restore(). */
+  _restoreFromSnapshot(snapshot: EngineSnapshot): void {
+    if (snapshot.version !== 1) {
+      throw new GraphError(
+        'INVALID_SNAPSHOT',
+        `Unsupported snapshot version: ${snapshot.version}`,
+      );
+    }
+    const currentNode = this.nodeMap.get(snapshot.currentNodeId);
+    if (!currentNode) {
+      throw new GraphError(
+        'INVALID_SNAPSHOT',
+        `Snapshot currentNodeId "${snapshot.currentNodeId}" is not in the graph`,
+      );
+    }
+    for (const id of snapshot.history) {
+      if (!this.nodeMap.has(id)) {
+        throw new GraphError(
+          'INVALID_SNAPSHOT',
+          `Snapshot history contains unknown node id "${id}"`,
+        );
+      }
+    }
+    if (snapshot.status !== 'active' && snapshot.status !== 'completed') {
+      throw new GraphError(
+        'INVALID_SNAPSHOT',
+        `Invalid snapshot status: "${snapshot.status}"`,
+      );
+    }
+    this._currentNode = currentNode;
+    this._answers = { ...snapshot.answers };
+    this._history = [...snapshot.history];
+    this._status = snapshot.status;
   }
 
   on<E extends keyof EngineEventMap<Answers, NodeDef>>(

@@ -236,6 +236,80 @@ export interface EngineEventMap<Answers, NodeDef extends AnyNodeDef = AnyNodeDef
   error: [error: GraphError];
 }
 
+/** JSON-safe runtime state of an engine — enough to resume traversal
+ *  from exactly the same position, with the same answers and history.
+ *  `version` is included so future-compatible migrations are possible. */
+export interface EngineSnapshot {
+  readonly version: 1;
+  readonly currentNodeId: string;
+  readonly answers: Readonly<Record<string, unknown>>;
+  readonly history: readonly string[];
+  readonly status: EngineStatus;
+}
+
+// ============================================================
+// Serialization — Graph Spec (JSON format)
+// ============================================================
+
+/** Marker for a dynamic expression stored as a DSL source string (e.g.
+ *  JSONata for dynamic values, Jexl for edge conditions). Distinguishes
+ *  an evaluated expression from a literal string. */
+export interface ExprSpec {
+  readonly _expr: string;
+}
+
+/** JSON representation of a node. Keep this structure permissive so
+ *  custom node kinds can serialize arbitrary extra JSON-safe fields. */
+export interface NodeSpec {
+  readonly _kind: string;
+  readonly id: string;
+  readonly title?: string | ExprSpec;
+  readonly description?: string | ExprSpec;
+  readonly question?: { readonly kind: string; readonly config: unknown };
+  readonly edges?: readonly EdgeSpec[];
+  readonly [extra: string]: unknown;
+}
+
+export interface EdgeSpec {
+  readonly _type: EdgeType;
+  readonly target: string;
+  /** Jexl-style expression source. Present only for `_type: 'when'`;
+   *  `edge` and `otherwise` always match, so no expression is stored. */
+  readonly condition?: string;
+}
+
+export interface GraphSpec {
+  readonly version: 1;
+  readonly nodes: readonly NodeSpec[];
+}
+
+/** Compiles a DSL source string into a callable. The callable receives
+ *  the evaluation context (EdgeContext for conditions, DynContext for
+ *  dynamic values) and returns a result — sync or async, per Awaitable. */
+export interface ExpressionAdapter<Result = unknown> {
+  compile(source: string): (ctx: any) => Awaitable<Result>;
+}
+
+/** Options accepted by `deserializeGraph` / `createGraphFromSpec`. */
+export interface DeserializeOptions {
+  /** Compiles edge condition strings (e.g. Jexl). Required if any
+   *  `_type: 'when'` edge has a `condition` string. */
+  readonly conditionAdapter?: ExpressionAdapter<boolean>;
+  /** Compiles dynamic value expressions (e.g. JSONata). Required if any
+   *  `title`/`description`/... is an `ExprSpec`. */
+  readonly dynamicAdapter?: ExpressionAdapter<unknown>;
+  /** Map from `QuestionDef.kind` → factory. Used to rehydrate question
+   *  nodes: `questionTypes[spec.question.kind](spec.question.config)`.
+   *  `any` in the config parameter keeps the registry compatible with
+   *  typed userland factories (TextConfig, NpsConfig, ...) without
+   *  requiring ceremony at the call site. */
+  readonly questionTypes?: Readonly<Record<string, (config: any) => QuestionDef>>;
+  /** Map from custom node `_kind` → factory. Each factory is expected
+   *  to accept the node fields (minus `_kind`) and return a runtime
+   *  node. Intended to be populated with `defineNodeType` results. */
+  readonly nodeTypes?: Readonly<Record<string, (fields: any) => AnyNodeDef>>;
+}
+
 export class GraphError extends Error {
   constructor(
     public readonly code: string,

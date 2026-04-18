@@ -5,6 +5,7 @@ import type {
   ValidateEdgeTargets,
   ConstrainDynamicValues,
   ValidationError,
+  EngineSnapshot,
 } from './types.js';
 import { GraphError } from './types.js';
 import { validateGraph } from './validation.js';
@@ -23,6 +24,17 @@ export class GraphDefinition<Init, Answers, NodeDef extends AnyNodeDef = AnyNode
 
   start(initialValues: Init): GraphEngine<Init, Answers, NodeDef> {
     return new GraphEngine<Init, Answers, NodeDef>(this.nodeMap, initialValues);
+  }
+
+  /** Reconstruct an engine positioned at the state captured by `snapshot`.
+   *  The graph definition is the source of truth for structure/behavior;
+   *  the snapshot only restores runtime state (current node, answers,
+   *  history, status). Throws `GraphError('INVALID_SNAPSHOT')` if the
+   *  snapshot references node IDs that don't exist in this graph. */
+  restore(snapshot: EngineSnapshot, initialValues: Init): GraphEngine<Init, Answers, NodeDef> {
+    const engine = new GraphEngine<Init, Answers, NodeDef>(this.nodeMap, initialValues);
+    engine._restoreFromSnapshot(snapshot);
+    return engine;
   }
 }
 
