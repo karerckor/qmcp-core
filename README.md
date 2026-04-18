@@ -1,4 +1,4 @@
-# @qmcp/core
+# qmcp-core
 
 Type-safe survey graph engine for TypeScript. Define branching surveys as directed graphs with compile-time validation of edge targets, typed answers, and a stateful traversal engine.
 
@@ -15,7 +15,7 @@ import {
   createGraph, welcome, question, result, end,
   text, radio, checkbox,
   edge, when, otherwise,
-} from '@qmcp/core';
+} from 'qmcp-core';
 
 const survey = createGraph<{ name: string; age: number }>()([
   welcome({

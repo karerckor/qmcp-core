@@ -1,5 +1,5 @@
 {
-  "name": "@qmpc/core",
+  "name": "qmcp-core",
   "version": "0.1.0",
   "description": "Type-safe declarative graph engine for building surveys and questionnaires",
   "type": "module",
