@@ -18,12 +18,12 @@ export class GraphEngine<Init, Answers, NodeDef extends AnyNodeDef = AnyNodeDef>
     private readonly nodeMap: Map<string, NodeDef>,
     private readonly initialValues: Init,
   ) {
-    const welcomeNode = nodeMap.get('__welcome__');
-    if (!welcomeNode) {
-      throw new GraphError('NO_WELCOME', 'Graph has no welcome node');
+    const entryNode = nodeMap.get('__entry__');
+    if (!entryNode) {
+      throw new GraphError('NO_ENTRY', 'Graph has no entry node');
     }
-    this._currentNode = welcomeNode;
-    this._history.push(welcomeNode.id);
+    this._currentNode = entryNode;
+    this._history.push(entryNode.id);
   }
 
   get currentNode(): NodeDef {
@@ -42,7 +42,7 @@ export class GraphEngine<Init, Answers, NodeDef extends AnyNodeDef = AnyNodeDef>
     return this._status;
   }
 
-  next(): void {
+  async next(): Promise<void> {
     this.assertActive();
     if (this._currentNode._kind === 'question') {
       throw new GraphError(
@@ -50,10 +50,10 @@ export class GraphEngine<Init, Answers, NodeDef extends AnyNodeDef = AnyNodeDef>
         `Cannot call next() on a question node "${this._currentNode.id}". Use submit() instead.`,
       );
     }
-    this.evaluateEdgesAndAdvance(undefined);
+    await this.evaluateEdgesAndAdvance(undefined);
   }
 
-  submit(answer: unknown): void {
+  async submit(answer: unknown): Promise<void> {
     this.assertActive();
     if (this._currentNode._kind !== 'question') {
       throw new GraphError(
@@ -62,7 +62,7 @@ export class GraphEngine<Init, Answers, NodeDef extends AnyNodeDef = AnyNodeDef>
       );
     }
     this._answers[this._currentNode.id] = answer;
-    this.evaluateEdgesAndAdvance(answer);
+    await this.evaluateEdgesAndAdvance(answer);
   }
 
   getAnswer<K extends keyof Answers & string>(nodeId: K): Answers[K] | undefined {
@@ -123,7 +123,7 @@ export class GraphEngine<Init, Answers, NodeDef extends AnyNodeDef = AnyNodeDef>
     }
   }
 
-  private evaluateEdgesAndAdvance(answer: unknown): void {
+  private async evaluateEdgesAndAdvance(answer: unknown): Promise<void> {
     const node = this._currentNode;
 
     if (!('edges' in node)) {
@@ -132,7 +132,7 @@ export class GraphEngine<Init, Answers, NodeDef extends AnyNodeDef = AnyNodeDef>
       throw err;
     }
 
-    const edges = (node as { edges: readonly { target: string; condition: (ctx: EdgeContext) => boolean }[] }).edges;
+    const edges = (node as { edges: readonly { target: string; condition: (ctx: EdgeContext) => boolean | Promise<boolean> }[] }).edges;
 
     const ctx: EdgeContext = {
       initial: this.initialValues,
@@ -141,7 +141,11 @@ export class GraphEngine<Init, Answers, NodeDef extends AnyNodeDef = AnyNodeDef>
     };
 
     for (const e of edges) {
-      if (e.condition(ctx)) {
+      // `await` handles both sync boolean and Promise<boolean> — a sync
+      // predicate resolves immediately without yielding to the event loop
+      // past the first await anchor, so the ordering guarantee (first
+      // matching edge wins) is preserved.
+      if (await e.condition(ctx)) {
         this.navigateTo(e.target);
         return;
       }

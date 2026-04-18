@@ -3,25 +3,25 @@ import type {
   DynamicValue,
   EdgeDef,
   QuestionDef,
-  WelcomeNodeDef,
+  EntryNodeDef,
   QuestionNodeDef,
-  ViewNodeDef,
   ResultNodeDef,
   EndNodeDef,
+  CustomNodeDef,
 } from './types.js';
 
-// ---- Welcome ----
+// ---- Entry (graph starting point) ----
 
-interface WelcomeConfig<Edges extends readonly EdgeDef[]> {
+interface EntryConfig<Edges extends readonly EdgeDef[]> {
   title: DynamicValue;
   description?: DynamicValue;
   edges: [...Edges];
 }
 
-export function welcome<const Edges extends readonly EdgeDef[]>(
-  config: WelcomeConfig<Edges>,
-): WelcomeNodeDef<Edges> {
-  return { _kind: 'welcome', id: '__welcome__', ...config } as WelcomeNodeDef<Edges>;
+export function entry<const Edges extends readonly EdgeDef[]>(
+  config: EntryConfig<Edges>,
+): EntryNodeDef<Edges> {
+  return { _kind: 'entry', id: '__entry__', ...config } as EntryNodeDef<Edges>;
 }
 
 // ---- Question ----
@@ -37,23 +37,14 @@ interface QuestionConfig<Id extends string, Q extends QuestionDef> {
 export function question<const Id extends string, Q extends QuestionDef>(
   config: QuestionConfig<Id, Q>,
 ): QuestionNodeDef<Id, Q> {
-  return { _kind: 'question', ...config } as QuestionNodeDef<Id, Q>;
-}
-
-// ---- View ----
-
-interface ViewConfig<Id extends string, Edges extends readonly EdgeDef[]> {
-  id: Id;
-  title: DynamicValue;
-  description?: DynamicValue;
-  text: DynamicValue;
-  edges: [...Edges];
-}
-
-export function view<const Id extends string, const Edges extends readonly EdgeDef[]>(
-  config: ViewConfig<Id, Edges>,
-): ViewNodeDef<Id, Edges> {
-  return { _kind: 'view', ...config } as ViewNodeDef<Id, Edges>;
+  return {
+    _kind: 'question',
+    ...config,
+    // Hoist the inner question's phantom to the node level so
+    // QuestionNodeDef and CustomNodeDef share a single `_answerType`
+    // contract — which is what ExtractAnswers keys off of.
+    _answerType: config.question._answerType,
+  } as QuestionNodeDef<Id, Q>;
 }
 
 // ---- Result ----
@@ -78,23 +69,22 @@ export function end(): EndNodeDef {
 
 // ---- Custom Node Type ----
 
-interface CustomNodeDef<Kind extends string, Id extends string, Answer> {
-  readonly _kind: Kind;
-  readonly id: Id;
-  readonly edges: readonly EdgeDef[];
-  readonly _answerType: Answer;
-}
-
-export function defineNodeType<Config extends Record<string, unknown>, Answer = undefined>(
-  options: { kind: string },
-) {
-  return <const Id extends string>(
-    config: { id: Id; edges: readonly EdgeDef[] } & Config,
-  ): CustomNodeDef<string, Id, Answer> & Config => {
+/** Creates a factory for a new node kind. Nodes produced by the returned
+ *  factory are first-class: they are assignable to AnyNodeDef, their edges
+ *  are type-validated against the graph's node IDs, and they participate in
+ *  ExtractAnswers when `Answer` is not `undefined`. */
+export function defineNodeType<
+  const Kind extends string,
+  Config extends object,
+  Answer = undefined,
+>(options: { kind: Kind }) {
+  return <const Id extends string, const Edges extends readonly EdgeDef<string, Answer>[]>(
+    config: { id: Id; edges: [...Edges] } & Config,
+  ): CustomNodeDef<Kind, Id, Answer, Edges> & Config => {
     return {
       _kind: options.kind,
       _answerType: undefined as Answer,
       ...config,
-    } as CustomNodeDef<string, Id, Answer> & Config;
+    } as CustomNodeDef<Kind, Id, Answer, Edges> & Config;
   };
 }

@@ -1,8 +1,14 @@
 // src/question.test.ts
-import { test, expect } from 'bun:test';
-import { text, radio, checkbox, nps } from './question.js';
+//
+// Tests for defineQuestionType — the single factory that ships in core.
+// Exercises both its runtime shape and that userland-declared question
+// types carry their answer types through the type system.
 
-// ---- Runtime structure tests ----
+import { test, expect } from 'bun:test';
+import { defineQuestionType } from './question-type.js';
+import { text, radio, checkbox, nps } from './test-utils.js';
+
+// ---- Runtime structure tests (userland types declared in test-utils) ----
 
 test('text() returns a QuestionDef with kind "text"', () => {
   const q = text({ placeholder: 'Enter name' });
@@ -46,23 +52,26 @@ test('nps() returns a QuestionDef with kind "nps"', () => {
   expect(q.config.max).toBe(10);
 });
 
-// ---- Phantom type tests (compile-time only) ----
-test('text()._answerType is a string at runtime', () => {
+// ---- defineQuestionType itself ----
+
+test('defineQuestionType returns a usable factory', () => {
+  interface MyConfig { readonly label: string }
+  const slider = defineQuestionType<'slider', MyConfig, number>('slider');
+
+  const q = slider({ label: 'Volume' });
+  expect(q.kind).toBe('slider');
+  expect(q.config).toEqual({ label: 'Volume' });
+});
+
+test('defineQuestionType preserves literal Kind on the runtime object', () => {
+  const picker = defineQuestionType<'date-picker', { format: string }, string>('date-picker');
+  const q = picker({ format: 'YYYY-MM-DD' });
+  expect(q.kind).toBe('date-picker');
+});
+
+test('_answerType phantom field exists on produced QuestionDef', () => {
   const q = text({ placeholder: '' });
-  expect(typeof q._answerType).toBe('string');
-});
-
-test('radio()._answerType exists', () => {
-  const q = radio({ options: [{ label: 'A', value: 42 }] });
-  expect(q).toHaveProperty('_answerType');
-});
-
-test('checkbox()._answerType is an array', () => {
-  const q = checkbox({ options: [{ label: 'A', value: 'a' }] });
-  expect(Array.isArray(q._answerType)).toBe(true);
-});
-
-test('nps()._answerType is a number', () => {
-  const q = nps({ min: 0, max: 10 });
-  expect(typeof q._answerType).toBe('number');
+  // The field is part of the type-level protocol; at runtime it must at
+  // least be enumerable on the object (undefined value is acceptable).
+  expect('_answerType' in q).toBe(true);
 });

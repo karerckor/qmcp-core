@@ -9,11 +9,11 @@ export function validateGraph(nodes: readonly AnyNodeDef[]): ValidationError[] {
     return errors;
   }
 
-  // WELCOME_POSITION
-  if (nodes[0]!._kind !== 'welcome') {
+  // ENTRY_POSITION
+  if (nodes[0]!._kind !== 'entry') {
     errors.push({
-      code: 'WELCOME_POSITION',
-      message: 'First node must be a welcome node',
+      code: 'ENTRY_POSITION',
+      message: 'First node must be an entry node',
       severity: 'error',
     });
   }
@@ -85,9 +85,9 @@ export function validateGraph(nodes: readonly AnyNodeDef[]): ValidationError[] {
     }
   }
 
-  // ORPHAN_NODE (warning) — skip welcome and end
+  // ORPHAN_NODE (warning) — skip entry and end
   for (const node of nodes) {
-    if (node._kind === 'welcome' || node._kind === 'end') continue;
+    if (node._kind === 'entry' || node._kind === 'end') continue;
     if (!incomingEdges.has(node.id)) {
       errors.push({
         code: 'ORPHAN_NODE',
@@ -98,7 +98,7 @@ export function validateGraph(nodes: readonly AnyNodeDef[]): ValidationError[] {
     }
   }
 
-  // NO_TERMINAL_PATH (warning) — BFS from welcome to check reachability to terminal
+  // NO_TERMINAL_PATH (warning) — BFS from entry to check reachability to terminal
   const terminalIds = new Set<string>();
   for (const node of nodes) {
     if (node._kind === 'result' || node._kind === 'end') {
@@ -115,7 +115,7 @@ export function validateGraph(nodes: readonly AnyNodeDef[]): ValidationError[] {
     }
 
     const visited = new Set<string>();
-    const queue: string[] = ['__welcome__'];
+    const queue: string[] = ['__entry__'];
     let reachesTerminal = false;
 
     while (queue.length > 0) {
@@ -137,7 +137,7 @@ export function validateGraph(nodes: readonly AnyNodeDef[]): ValidationError[] {
     if (!reachesTerminal) {
       errors.push({
         code: 'NO_TERMINAL_PATH',
-        message: 'No path from welcome reaches a result or end node',
+        message: 'No path from entry reaches a result or end node',
         severity: 'warning',
       });
     }

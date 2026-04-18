@@ -1,31 +1,31 @@
 // src/node.test.ts
 import { test, expect } from 'bun:test';
-import { welcome, question, view, result, end } from './node.js';
-import { text } from './question.js';
-import { edge, when, otherwise } from './edge.js';
+import { entry, question, result, end } from './node.js';
+import { text, view } from './test-utils.js';
+import { edge } from './edge.js';
 
-test('welcome() produces a WelcomeNodeDef', () => {
-  const n = welcome({
+test('entry() produces an EntryNodeDef', () => {
+  const n = entry({
     title: 'Hello!',
     edges: [edge('next')],
   });
-  expect(n._kind).toBe('welcome');
-  expect(n.id).toBe('__welcome__');
+  expect(n._kind).toBe('entry');
+  expect(n.id).toBe('__entry__');
   expect(n.title).toBe('Hello!');
   expect(n.edges).toHaveLength(1);
 });
 
-test('welcome() with dynamic title', () => {
-  const n = welcome({
-    title: ({ initial }) => `Hi, ${initial.name}`,
+test('entry() with dynamic title', () => {
+  const n = entry({
+    title: ({ initial }) => `Hi, ${(initial as { name: string }).name}`,
     edges: [edge('next')],
   });
-  expect(n._kind).toBe('welcome');
+  expect(n._kind).toBe('entry');
   expect(typeof n.title).toBe('function');
 });
 
-test('welcome() with description', () => {
-  const n = welcome({
+test('entry() with description', () => {
+  const n = entry({
     title: 'Hello',
     description: 'A description',
     edges: [edge('next')],
@@ -46,7 +46,7 @@ test('question() produces a QuestionNodeDef with literal id', () => {
   expect(n.edges).toHaveLength(1);
 });
 
-test('view() produces a ViewNodeDef', () => {
+test('view (userland custom node) produces a node with _kind: "view"', () => {
   const n = view({
     id: 'info_page',
     title: 'About Us',

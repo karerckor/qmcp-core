@@ -1,13 +1,13 @@
 // src/graph.test.ts
 import { test, expect } from 'bun:test';
 import { createGraph } from './graph.js';
-import { welcome, question, view, result, end } from './node.js';
-import { text, radio, checkbox, nps } from './question.js';
+import { entry, question, result, end } from './node.js';
+import { text, radio, view } from './test-utils.js';
 import { edge, when, otherwise } from './edge.js';
 
 test('createGraph produces a GraphDefinition', () => {
   const graph = createGraph<{ name: string }>()([
-    welcome({ title: 'Hi', edges: [edge('q1')] }),
+    entry({ title: 'Hi', edges: [edge('q1')] }),
     question({
       id: 'q1',
       title: 'Name?',
@@ -24,7 +24,7 @@ test('createGraph produces a GraphDefinition', () => {
 
 test('GraphDefinition.nodes preserves node order', () => {
   const graph = createGraph<{}>()([
-    welcome({ title: 'Hi', edges: [edge('q1')] }),
+    entry({ title: 'Hi', edges: [edge('q1')] }),
     question({
       id: 'q1',
       title: 'Q?',
@@ -35,7 +35,7 @@ test('GraphDefinition.nodes preserves node order', () => {
     end(),
   ]);
 
-  expect(graph.nodes[0]!._kind).toBe('welcome');
+  expect(graph.nodes[0]!._kind).toBe('entry');
   expect(graph.nodes[1]!._kind).toBe('question');
   expect(graph.nodes[2]!._kind).toBe('result');
   expect(graph.nodes[3]!._kind).toBe('end');
@@ -43,7 +43,7 @@ test('GraphDefinition.nodes preserves node order', () => {
 
 test('GraphDefinition.nodeMap provides O(1) lookup by id', () => {
   const graph = createGraph<{}>()([
-    welcome({ title: 'Hi', edges: [edge('q1')] }),
+    entry({ title: 'Hi', edges: [edge('q1')] }),
     question({
       id: 'q1',
       title: 'Q?',
@@ -54,7 +54,7 @@ test('GraphDefinition.nodeMap provides O(1) lookup by id', () => {
     end(),
   ]);
 
-  expect(graph.nodeMap.get('__welcome__')?._kind).toBe('welcome');
+  expect(graph.nodeMap.get('__entry__')?._kind).toBe('entry');
   expect(graph.nodeMap.get('q1')?._kind).toBe('question');
   expect(graph.nodeMap.get('r1')?._kind).toBe('result');
   expect(graph.nodeMap.get('__end__')?._kind).toBe('end');
@@ -62,7 +62,7 @@ test('GraphDefinition.nodeMap provides O(1) lookup by id', () => {
 
 test('graph with conditional edges', () => {
   const graph = createGraph<{ age: number }>()([
-    welcome({
+    entry({
       title: 'Hello',
       edges: [
         when(({ initial }) => initial.age >= 18, 'adult'),
@@ -94,9 +94,9 @@ test('graph with conditional edges', () => {
   expect(graph.nodeMap.size).toBe(5);
 });
 
-test('graph with view node', () => {
+test('graph with userland view (custom) node', () => {
   const graph = createGraph<{}>()([
-    welcome({ title: 'Hi', edges: [edge('info')] }),
+    entry({ title: 'Hi', edges: [edge('info')] }),
     view({
       id: 'info',
       title: 'Info',

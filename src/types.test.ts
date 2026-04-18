@@ -1,9 +1,9 @@
 // src/types.test.ts
 import { test, expect } from 'bun:test';
-import type { ExtractAnswers, ExtractNodeIds, QuestionNodeDef, QuestionDef } from './types.js';
+import type { ExtractAnswers, ExtractNodeIds } from './types.js';
 import { createGraph } from './graph.js';
-import { welcome, question, result, end } from './node.js';
-import { text, radio, checkbox, nps } from './question.js';
+import { entry, question, result, end, defineNodeType } from './node.js';
+import { text, radio, checkbox, nps } from './test-utils.js';
 import { edge, when, otherwise } from './edge.js';
 
 // ============================================================
@@ -12,7 +12,7 @@ import { edge, when, otherwise } from './edge.js';
 
 test('ExtractAnswers extracts answer types from question nodes', () => {
   const nodes = [
-    welcome({ title: 'Hi', edges: [edge('q1')] }),
+    entry({ title: 'Hi', edges: [edge('q1')] }),
     question({
       id: 'q1',
       title: 'Name?',
@@ -39,13 +39,38 @@ test('ExtractAnswers extracts answer types from question nodes', () => {
   expect(nodes).toHaveLength(5);
 });
 
+test('ExtractAnswers includes custom nodes with non-undefined _answerType', () => {
+  // Userland: a custom node that captures a boolean answer.
+  const consent = defineNodeType<'consent', { text: string }, boolean>({ kind: 'consent' });
+
+  const nodes = [
+    entry({ title: 'Hi', edges: [edge('gdpr')] }),
+    consent({
+      id: 'gdpr',
+      text: 'Accept policy?',
+      edges: [edge('done')],
+    }),
+    result({ id: 'done', title: 'Done' }),
+    end(),
+  ];
+
+  type Answers = ExtractAnswers<typeof nodes>;
+  // This assignment fails until ExtractAnswers is extended to include
+  // custom nodes' _answerType. The direction matters: we need Answers to
+  // be ASSIGNABLE TO { gdpr: boolean } — i.e. Answers must already carry
+  // the 'gdpr' key typed as boolean. With the current naive implementation
+  // (question-only), Answers is `{}` and the assignment errors.
+  const _check: { gdpr: boolean } = {} as Answers;
+  expect(nodes).toHaveLength(4);
+});
+
 // ============================================================
 // Node ID extraction type tests
 // ============================================================
 
 test('ExtractNodeIds extracts all node IDs', () => {
   const nodes = [
-    welcome({ title: 'Hi', edges: [edge('q1')] }),
+    entry({ title: 'Hi', edges: [edge('q1')] }),
     question({
       id: 'q1',
       title: 'Q?',
@@ -58,7 +83,7 @@ test('ExtractNodeIds extracts all node IDs', () => {
 
   type Ids = ExtractNodeIds<typeof nodes>;
 
-  const _id1: Ids = '__welcome__';
+  const _id1: Ids = '__entry__';
   const _id2: Ids = 'q1';
   const _id3: Ids = 'done';
   const _id4: Ids = '__end__';
@@ -115,7 +140,7 @@ test('createGraph rejects invalid edge targets at compile time', () => {
   expect(() =>
     createGraph<{}>()([
       // @ts-expect-error — 'nonexistent' is not a valid node ID
-      welcome({ title: 'Hi', edges: [edge('nonexistent')] }),
+      entry({ title: 'Hi', edges: [edge('nonexistent')] }),
       question({ id: 'q1', title: 'Q?', question: text({}), edges: [edge('done')] }),
       result({ id: 'done', title: 'Done' }),
       end(),
@@ -125,7 +150,7 @@ test('createGraph rejects invalid edge targets at compile time', () => {
 
 test('createGraph accepts valid edge targets', () => {
   const _ok = createGraph<{}>()([
-    welcome({ title: 'Hi', edges: [edge('q1')] }),
+    entry({ title: 'Hi', edges: [edge('q1')] }),
     question({ id: 'q1', title: 'Q?', question: text({}), edges: [edge('done')] }),
     result({ id: 'done', title: 'Done' }),
     end(),
@@ -139,7 +164,7 @@ test('createGraph accepts valid edge targets', () => {
 
 test('DynamicValue callbacks get Init type from createGraph', () => {
   const _ok = createGraph<{ name: string; age: number }>()([
-    welcome({
+    entry({
       title: ({ initial }) => `Hi, ${initial.name}!`,
       edges: [edge('done')],
     }),
@@ -154,10 +179,8 @@ test('DynamicValue callbacks get Init type from createGraph', () => {
 // ============================================================
 
 test('edge predicate answer is typed from question config', () => {
-  // Answer type must be explicitly provided to when() — TypeScript cannot
-  // infer generic params from the expected return type context.
   const _ok = createGraph<{}>()([
-    welcome({ title: 'Hi', edges: [edge('q1')] }),
+    entry({ title: 'Hi', edges: [edge('q1')] }),
     question({
       id: 'q1',
       title: 'Name?',

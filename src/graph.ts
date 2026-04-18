@@ -26,9 +26,15 @@ export class GraphDefinition<Init, Answers, NodeDef extends AnyNodeDef = AnyNode
   }
 }
 
+/** Creates a graph builder. `Init` must be supplied explicitly — this is
+ *  what shapes the `ctx.initial` type in every DynamicValue/edge predicate
+ *  across the graph. There is no default. */
 export function createGraph<Init>() {
   return <const Nodes extends readonly AnyNodeDef[]>(
-    nodes: [...Nodes] & ValidateEdgeTargets<Nodes> & ConstrainDynamicValues<Init, Nodes>,
+    nodes:
+      & [...Nodes]
+      & ValidateEdgeTargets<Nodes>
+      & ConstrainDynamicValues<Init, ExtractAnswers<Nodes>, Nodes>,
   ): GraphDefinition<Init, ExtractAnswers<Nodes>, Nodes[number]> => {
     const validationResults = validateGraph(nodes as readonly AnyNodeDef[]);
     const errors = validationResults.filter((e) => e.severity === 'error');

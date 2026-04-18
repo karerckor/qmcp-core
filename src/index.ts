@@ -1,31 +1,33 @@
 // src/index.ts
 
 // Graph construction
-export { createGraph } from './graph.js';
-export { GraphDefinition } from './graph.js';
+export { createGraph, GraphDefinition } from './graph.js';
 
 // Node factories
-export { welcome, question, view, result, end, defineNodeType } from './node.js';
+export { entry, question, result, end, defineNodeType } from './node.js';
 
 // Edge helpers
 export { when, otherwise, edge } from './edge.js';
 
-// Reference question types
-export { text, radio, checkbox, nps } from './question.js';
+// Question type factory — core ships no built-in question types;
+// consumers declare their own.
+export { defineQuestionType } from './question-type.js';
 
 // Types
 export type {
   QuestionDef,
   DynamicValue,
   DynContext,
+  Awaitable,
   EdgeDef,
   EdgeContext,
+  EdgeType,
   AnyNodeDef,
-  WelcomeNodeDef,
+  EntryNodeDef,
   QuestionNodeDef,
-  ViewNodeDef,
   ResultNodeDef,
   EndNodeDef,
+  CustomNodeDef,
   ExtractAnswers,
   ExtractNodeIds,
   ValidationError,
@@ -36,12 +38,3 @@ export type {
 
 export { GraphError } from './types.js';
 export { GraphEngine } from './engine.js';
-
-// Question config types
-export type {
-  TextConfig,
-  RadioConfig,
-  CheckboxConfig,
-  NpsConfig,
-  Option,
-} from './question.js';

@@ -10,8 +10,8 @@ test('when() creates a conditional edge', () => {
 });
 
 test('when() predicate receives context', () => {
-  const e = when(
-    (ctx) => ctx.initial.age >= 18,
+  const e = when<'adult', unknown>(
+    (ctx) => (ctx.initial as { age: number }).age >= 18,
     'adult',
   );
   expect(e.condition({ initial: { age: 20 }, answers: {}, answer: undefined })).toBe(true);
@@ -19,7 +19,7 @@ test('when() predicate receives context', () => {
 });
 
 test('when() predicate can use answer', () => {
-  const e = when(
+  const e = when<'high_score', number>(
     (ctx) => ctx.answer > 5,
     'high_score',
   );
